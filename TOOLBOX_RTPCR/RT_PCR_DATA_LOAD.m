@@ -22,7 +22,7 @@ clearvars
 
 sampleNames={};
 %sampleNames={'Fob20','Fob20b','JR1','JR1b','JR2','JR2b','empty','empty'}
-%sampleNames={'Fob20','Fob20b','KT','KTb','KTc','KTd','KTe','KTf'}
+sampleNames={'Fob20','Fob20b','KT','KTb','KTc','KTd','KTe','KTf'}
 % sampleNames={'Fob20','Fob20b','stack2','stack2b','stack3','stack3b','stack4','stack4b','stack5','stack5b','stack6','stack6b','stack7','stack7b'...
 %     ,'stack8','stack8b','stack9','stack9b','stack10','stack10b','stack11','stack11b','stack12','stack12b','stack13','stack13b','stack14','stack14b'...
 %     ,'stack15','stack15b','stack16','stack16b','stack17','stack17b','stack18','stack18b','stack19','stack19b','stack20','stack20b'}
