@@ -1,11 +1,10 @@
+function [ results, resultParameters, averagedData, temperatures ] = cluster_data_analysis(numStructures,traces,timeSteps,structureNames)
 %% select data
 %selects data to open
 %filename{N} are filenames of files
 %pathname is pathnames of files
 
-clearvars
-
-[filename pathname]=uigetfile('*','feed me cluster data human','MultiSelect','on');
+[filename, pathname]=uigetfile('*','feed me cluster data human','MultiSelect','on');
 
 
 %% load data and analyze
@@ -15,24 +14,21 @@ clearvars
 %currentData is array of traceData x structures, with empty lines between
 %traces omited
 
-numStructures=15;                                                    %number of structures simulated
-timeSteps=7200+1;                                                   %number of steps printed
-traces=10;                                                           %number of traces per structure and parameter set
+numStructures;                                                      %number of structures simulated
+traces;                                                             %number of traces per structure and parameter set
+timeSteps;                                                          %number of steps printed
 
 numParameterLines=27;                                               %number of lines after structure names before data starts
-temperatureParameterLine=20;                                        %location of temperature value in beginning output
-parametersText=cell(1+numStructures+numParameterLines,1);               %saves parameters text, each cell one line
-
+temperatureNameLocation=8;                                          %location of temperature value in file name
+parametersText=cell(1+numStructures+numParameterLines,1);           %saves parameters text, each cell one line
 numParameters=10;                                                   %number of parameters in filename
-                
 
-%structureNames={'42hbv3'};                                          %shorthand names of structures
-structureNames={'v1','v2','v3','v4','v5','v6','v7','v8','v11','v13','v14','v15','ssp','RRv3','RR'};
+structureNames;                                                     %shorthand names of structures
+%structureNames={'42hbv3'};                                          
+%structureNames={'v1','v2','v3','v4','v5','v6','v7','v8','v11','v13','v14','v15','ssp','RRv3','RR'};
 %structureNames={'v1','v2','v3','v6','v7','v8','v13','v14','ssp','RR'};
 
-
 numFiles=size(filename,2);                                          %number of files loaded
-resultParameters=cell(numFiles+1,numParameters);                    %actual run parameters of each simulation file          
 
 if ~(iscell(filename))                                              %check if a single file was loaded, if yes, adjust data type of filename
     numFiles=1;
@@ -41,7 +37,7 @@ end
 
 currentData=zeros(timeSteps*traces,numStructures+1);                %temporary storage current file
 results=cell(numFiles+1,1+1+2*numStructures);                         %analysis results of data
-
+averagedData=zeros(timeSteps,numStructures,numFiles);
 
 for i=1:numFiles
     
@@ -60,48 +56,43 @@ for i=1:numFiles
 
     fclose(currentFile);
     
-    %analysis part
-                                                          
-    results{i+1,1}=filename{i};                                     %put filenames in results
+    %analyse data
+    for j=0:(traces-1)
+        averagedData(:,i)=averagedData(:,:,i)+currentData(j*timeSteps+1:(j+1)*timeSteps,2:end)/traces;
+        averagedData(:,i)=averagedData(:,:,i)+0.8*(currentData(j*timeSteps+1:(j+1)*timeSteps,2:end)==0)/traces;
+    end
     
-                                                                    %load parameters from file name
-    [parameterStarts, parameterEnds]=regexp(results{i+1,1},'[0123456789.-]*');
+    results{i+1,1}=filename{i};                                     %put filenames in results
+                                                                    
+    [parameterStarts, parameterEnds]=regexp(results{i+1,1},'[0123456789.-]*');%load parameters from file name
     for j=1:length(parameterStarts)
         resultParameters{i+1,j}=results{i+1,1}(parameterStarts(j):parameterEnds(j));
     end
     
-    tempLocation=strfind(filename{i}, '_t');                        %read temperature from filename
-    results{i+1,2}=filename{i}(tempLocation+2:tempLocation+3);
+    results{i+1,2}=resultParameters{i+1,temperatureNameLocation}; %read temperature from filename
     
     for j=1:numStructures                                           %set number of folded structures to max
         results{i+1,j+2}=traces;
         results{i+1,j+2+numStructures}=0;
     end
     
-    for j=1:traces                                                  
-        for k=1:numStructures
+    for k=1:numStructures                                                  
+        for j=1:traces
 
-            if sum(currentData(j*timeSteps-30:j*timeSteps,k+1))~=0  %reduce number of folded structures if structure is unfolded at end of trace
-                results{i+1,k+2}=results{i+1,k+2}-1;                %add constant non-fold time to average time of
-                                                                    %folding
-                results{i+1,k+2+numStructures}=results{i+1,k+2+numStructures}+currentData(timeSteps);
-            else                                                    %find time of folding
-                currentTimeStep=j*timeSteps;
-                tempCurrentData=currentData((j-1)*timeSteps+1:j*timeSteps,[1,1+k]);
-                tempCurrentData=tempCurrentData(tempCurrentData(:,2)~=0,1);
-                                                                    %add time of folding to average time of folding
-                results{i+1,k+2+numStructures}=results{i+1,k+2+numStructures}+tempCurrentData(end);
+            if sum(currentData(j*timeSteps-5:j*timeSteps,k+1))~=0  %reduce number of folded structures if structure is unfolded at end of trace
+                results{i+1,k+2}=results{i+1,k+2}-1;                %add constant non-fold time to average time of folding
+                results{i+1,k+2+numStructures}=results{i+1,k+2+numStructures}+currentData(timeSteps,1);
+            else                                                    
+                tempCurrentData=currentData((currentData((j-1)*timeSteps+1:j*timeSteps,1+k)~=0),1);     %find time of folding
+                if ~isempty(tempCurrentData)                                                            %check if structure ever started folding
+                    results{i+1,k+2+numStructures}=results{i+1,k+2+numStructures}+tempCurrentData(end); %add time of folding to average time of folding
+                end              
             end
-            
         end
+        results{i+1,k+2+numStructures}=results{i+1,k+2+numStructures}/traces; %calculate average time of folding
     end
-    
-    for j=1:numStructures                                           %calculate average time of folding
-        results{i+1,j+2+numStructures}=results{i+1,j+2+numStructures}/traces;
-    end
-    
+   
 end
-
                                                                     %write column names from parameters text block
 results{1,1}='filename';
 results{1,2}='temperature';
@@ -133,32 +124,46 @@ fclose(currentFile);
 
 %% visualisation
 
+parameterTypes=cell(1,numParameters);
+numParameterType=cell(1,numParameters);
 for i=1:numParameters
-    parameterTypes{i}=unique({resultParameters{2:end,i}})
-    numParameterType{i}=length(parameterTypes{i})
+    parameterTypes{i}=unique(resultParameters(2:end,i));
+    numParameterType{i}=length(parameterTypes{i});
 end
-
                                                                 %calculate avg fold time of each structure for one given parameter
-currentFigure=figure;
+temperatures=unique(results(2:end,2));
+                                                                
+currentFigure=figure;       
 currentAxes=gca;
 for i=1:numParameters
-    tempAvgs=zeros(numParameterType{i},numStructures);
+    tempAverages=zeros(numParameterType{i},length(temperatures));
     for j=1:numParameterType{i}
-        for k=1:numStructures
-            tempAvgs(j,k)=mean([results{strcmp(resultParameters(:,i),parameterTypes{i}(j)),2+numStructures+k}]);
+        for k=1:length(temperatures)
+            tempAverages(j,k)=mean([results{strcmp(resultParameters(:,i),parameterTypes{i}(j)) & strcmp(resultParameters(:,temperatureNameLocation),temperatures(k)),4}]);
         end
     end
-    plot(tempAvgs)
-    legend(structureNames)
+    plot(transpose(tempAverages),'LineWidth',5) %plot fold time over temperature for one constant parameter averaged over all other parameters
+    legend(parameterTypes{i})
+    ylabel('folding time [sec]')
+    xlabel('Temperature [C]')
+    axis([-inf inf 0 currentData(timeSteps,1)])
+    set(currentAxes, 'XTick',1:length(temperatures), 'XTickLabel',temperatures)
+    set(currentAxes, 'FontSize',20)
+    pause
+    
+    plot(tempAverages,'LineWidth',5) %plot fold time over one parameter for constant temperature averaged over all other parameters
+    legend(temperatures)
+    ylabel('folding time [sec]')
+    xlabel('parameter')
+    axis([-inf inf 0 currentData(timeSteps,1)])
     set(currentAxes, 'XTick',1:numParameterType{i}, 'XTickLabel',parameterTypes{i})
+    set(currentAxes, 'FontSize',20)
     pause
 end
-        
 
+return
 
-
-
-num=1:100;                                                       %parameter file counter
+num=1:200;                                                       %parameter file counter
 
 currentFigure=figure;                                               %plot all results
 currentBar=bar3(cell2mat(results(2:end,2+numStructures+1:2+2*numStructures)));
