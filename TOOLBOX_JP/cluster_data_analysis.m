@@ -1,32 +1,28 @@
-function [ results, resultParameters, averagedData, temperatures ] = cluster_data_analysis(numStructures,traces,timeSteps,structureNames)
-%% select data
-%selects data to open
-%filename{N} are filenames of files
-%pathname is pathnames of files
+function [ results, averagedData ] = cluster_data_analysis(numStructures,traces,timeSteps, varargin)
+%% analyzes gillespie simulation data
+%   numStructures is number of structures simulated
+%   traces is number of traces per structure and parameter set
+%   timeSteps is number of steps printed
+%   varargin is cell of supplied structure names
 
-[filename, pathname]=uigetfile('*','feed me cluster data human','MultiSelect','on');
+%   filename{N} are filenames of files
+%   pathname is pathnames of files
 
+[filename, pathname]=uigetfile('*','select cluster data','MultiSelect','on');
+
+if ~isempty(varargin)                                                            % names of structures
+    structureNames=varargin{1};
+end
 
 %% load data and analyze
-%opens file, copies data into parameters and currentData, analyzes,
+%opens file, copies data into results and currentData, analyzes,
 %then opens next file
-%parameters are cells with parameter strings
 %currentData is array of traceData x structures, with empty lines between
 %traces omited
 
-numStructures;                                                      %number of structures simulated
-traces;                                                             %number of traces per structure and parameter set
-timeSteps;                                                          %number of steps printed
-
 numParameterLines=27;                                               %number of lines after structure names before data starts
-temperatureNameLocation=8;                                          %location of temperature value in file name
 parametersText=cell(1+numStructures+numParameterLines,1);           %saves parameters text, each cell one line
 numParameters=10;                                                   %number of parameters in filename
-
-structureNames;                                                     %shorthand names of structures
-%structureNames={'42hbv3'};                                          
-%structureNames={'v1','v2','v3','v4','v5','v6','v7','v8','v11','v13','v14','v15','ssp','RRv3','RR'};
-%structureNames={'v1','v2','v3','v6','v7','v8','v13','v14','ssp','RR'};
 
 numFiles=size(filename,2);                                          %number of files loaded
 
@@ -36,7 +32,7 @@ if ~(iscell(filename))                                              %check if a 
 end
 
 currentData=zeros(timeSteps*traces,numStructures+1);                %temporary storage current file
-results=cell(numFiles+1,1+1+2*numStructures);                         %analysis results of data
+results=cell(numFiles+1,1+numParameters+2*numStructures);                         %analysis results of data
 averagedData=zeros(timeSteps,numStructures,numFiles);
 
 for i=1:numFiles
@@ -58,50 +54,55 @@ for i=1:numFiles
     
     %analyse data
     for j=0:(traces-1)
-        averagedData(:,i)=averagedData(:,:,i)+currentData(j*timeSteps+1:(j+1)*timeSteps,2:end)/traces;
-        averagedData(:,i)=averagedData(:,:,i)+0.8*(currentData(j*timeSteps+1:(j+1)*timeSteps,2:end)==0)/traces;
+        averagedData(:,:,i)=averagedData(:,:,i)+currentData(j*timeSteps+1:(j+1)*timeSteps,2:end)/traces;
+        averagedData(:,:,i)=averagedData(:,:,i)+0.8*(currentData(j*timeSteps+1:(j+1)*timeSteps,2:end)==0)/traces;
     end
     
     results{i+1,1}=filename{i};                                     %put filenames in results
                                                                     
     [parameterStarts, parameterEnds]=regexp(results{i+1,1},'[0123456789.-]*');%load parameters from file name
-    for j=1:length(parameterStarts)
-        resultParameters{i+1,j}=results{i+1,1}(parameterStarts(j):parameterEnds(j));
+    for j=1:numParameters
+        results{i+1,j+1}=results{i+1,1}(parameterStarts(j):parameterEnds(j));
     end
     
-    results{i+1,2}=resultParameters{i+1,temperatureNameLocation}; %read temperature from filename
-    
-    for j=1:numStructures                                           %set number of folded structures to max
-        results{i+1,j+2}=traces;
-        results{i+1,j+2+numStructures}=0;
+    for j=1:numStructures                                           %set number of folded structures to max, avg folding time to 0
+        results{i+1,j+1+numParameters}=traces;
+        results{i+1,j+1+numParameters+numStructures}=0;
     end
     
     for k=1:numStructures                                                  
         for j=1:traces
 
             if sum(currentData(j*timeSteps-5:j*timeSteps,k+1))~=0  %reduce number of folded structures if structure is unfolded at end of trace
-                results{i+1,k+2}=results{i+1,k+2}-1;                %add constant non-fold time to average time of folding
-                results{i+1,k+2+numStructures}=results{i+1,k+2+numStructures}+currentData(timeSteps,1);
+                results{i+1,k+1+numParameters}=results{i+1,k+1+numParameters}-1;                %add constant non-fold time to average time of folding
+                results{i+1,k+1+numParameters+numStructures}=results{i+1,k+1+numParameters+numStructures}+currentData(timeSteps,1);
             else                                                    
                 tempCurrentData=currentData((currentData((j-1)*timeSteps+1:j*timeSteps,1+k)~=0),1);     %find time of folding
                 if ~isempty(tempCurrentData)                                                            %check if structure ever started folding
-                    results{i+1,k+2+numStructures}=results{i+1,k+2+numStructures}+tempCurrentData(end); %add time of folding to average time of folding
+                    results{i+1,k+1+numParameters+numStructures}=results{i+1,k+1+numParameters+numStructures}+tempCurrentData(end); %add time of folding to average time of folding
                 end              
             end
         end
-        results{i+1,k+2+numStructures}=results{i+1,k+2+numStructures}/traces; %calculate average time of folding
+        results{i+1,k+1+numParameters+numStructures}=results{i+1,k+1+numParameters+numStructures}/traces; %calculate average time of folding
     end
    
 end
                                                                     %write column names from parameters text block
 results{1,1}='filename';
-results{1,2}='temperature';
 
-for i=1:numStructures                                               %read names of structure files analyzed, write to results
+if exist('structureNames','var')
+    for i=1:numStructures                                               %read names of structure files analyzed, write to results
+    results{1,i+1+numParameters}=structureNames{i};
+    results{1,i+1+numParameters+numStructures}=structureNames{i};
+    end
+else
+    for i=1:numStructures                                               %read names of structure files analyzed, write to results
     tempLocation=strfind(parametersText{i+1}, '/');
-    results{1,i+2}=parametersText{i+1}(tempLocation(size(tempLocation,2))+1:size(parametersText{i+1},2));
-    results{1,i+2+numStructures}=parametersText{i+1}(tempLocation(size(tempLocation,2))+1:size(parametersText{i+1},2));
+    results{1,i+1+numParameters}=parametersText{i+1}(tempLocation(size(tempLocation,2))+1:size(parametersText{i+1},2));
+    results{1,i+1+numParameters+numStructures}=parametersText{i+1}(tempLocation(size(tempLocation,2))+1:size(parametersText{i+1},2));
+    end
 end
+
     
 
 %% save results to  results.txt
@@ -109,7 +110,7 @@ end
 currentFile=fopen([pathname filesep 'results.txt'],'w');
 
 for i=1:numFiles+1
-    for j=1:2*numStructures+2
+    for j=1:2*numStructures+1+numParameters
         if ischar(results{i,j})
             fprintf(currentFile,'%s\t',results{i,j});
         else
@@ -121,6 +122,7 @@ end
 
 fclose(currentFile);
 
+return
 
 %% visualisation
 
@@ -160,8 +162,6 @@ for i=1:numParameters
     set(currentAxes, 'FontSize',20)
     pause
 end
-
-return
 
 num=1:200;                                                       %parameter file counter
 

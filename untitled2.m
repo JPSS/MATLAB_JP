@@ -74,3 +74,35 @@ end
 results((runTimesAvgSorted>1000000),1)
 runTimesAvg((runTimesAvg>1000000))
 runTimesStd((runTimesAvg>1000000))
+
+
+temp=squeeze(averagedData);
+
+surface(temp(2:30:7200,1:4:end))
+surface(temp(2:30:7200,2:4:end))
+
+surface(temp(2:3:720,1:4:end))
+surface(temp(2:3:720,2:4:end))
+surface(temp(2:3:720,3:4:end))
+surface(temp(2:3:720,4:4:end))
+
+surface(temp(2:3:720,1:4:24*4))
+surface(temp(2:1:720,2:4:24*4),'EdgeColor','none','LineStyle','none')
+surface(temp(2:3:720,3:4:24*4))
+surface(temp(2:3:720,4:4:24*4))
+
+[ results, averagedData ] = cluster_data_analysis(1,5,7201,{'v3'});
+
+[ results, averagedData ] = cluster_data_analysis(2,2,7201,{'v1','v3'});
+
+[ results, averagedData ] = cluster_data_analysis(10,10,7201);
+[ results, averagedData ] = cluster_data_analysis(10,10,7201,{'v1','v2','v3','v6','v7','v8','v13','v14','ssp','RR'});
+
+cluster_data_visualization( results, averagedData, 8, 11)
+cluster_data_visualization( results, averagedData, 2, 11)
+
+cluster_data_visualization( results, averagedData, 2, 8)
+
+plot([results{5:7:end,14}])
+hold on
+plot([results{5:7:end,15}])
