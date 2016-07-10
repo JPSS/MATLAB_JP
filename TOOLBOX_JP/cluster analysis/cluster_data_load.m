@@ -1,10 +1,8 @@
-function [ results, averagedData ] = cluster_data_analysis(numStructures,traces,timeSteps, varargin)
+function [ results ] = cluster_data_load(nr_structures,nr_time_steps, varargin)
 %% analyzes gillespie simulation data
-%   numStructures is number of structures simulated
-%   traces is number of traces per structure and parameter set
-%   timeSteps is number of steps printed
+%   nr_structures is number of structures in file
+%   nr_times_steps is number of steps printed
 %   structureNames is cell of supplied structure names
-%   threshold is threshold above which structure is considered folded
 
 %   filename{N} are filenames of files
 %   pathname is pathnames of files
@@ -12,34 +10,19 @@ function [ results, averagedData ] = cluster_data_analysis(numStructures,traces,
 %% parse input variables
     p = inputParser;
     % required parameter
-    addRequired(p,'numStructures');
-    addRequired(p,'traces');
-    addRequired(p,'timeSteps');
+    addRequired(p,'nr_structures');
+    addRequired(p,'nr_times_steps');
     
-    % optional parameter: structureNames names of structures 
-    default_structure_names = {};
-    addParameter(p,'structure_names', default_structure_names,  @iscell); % check 
-    
-    % optional parameter: threshold when structure is considered folded
-    default_threshold = -1;
-    addParameter(p,'threshold', default_threshold,  @isnumeric); % check 
-    
-    parse(p, numStructures,traces,timeSteps, varargin{:});
-    structureNames=p.Results.structure_names;
-    thresholdBool = p.Results.threshold~=-1;
-    threshold=p.Results.threshold;
-    
-%% load data and analyze
+%% load data
 %opens file, copies data into results and currentData, analyzes,
 %then opens next file
-%currentData is array of traceData x structures, with empty lines between
-%traces omited
+%current_data is array of averaged traces from file
 
 [filename, pathname]=uigetfile('*','select cluster data','MultiSelect','on');
 
-numParameterLines=27;                                               %number of lines after structure names before data starts
-parametersText=cell(1+numStructures+numParameterLines,1);           %saves parameters text, each cell one line
-numParameters=10;                                                   %number of parameters in filename
+nr_parameter_lines=28;                                               %number of lines after structure names before data starts
+parameters_text=cell(1+nr_structures+nr_parameter_lines,1);           %saves parameters text, each cell one line
+nr_parameters=12;                                                   %number of parameters in filename
 
 numFiles=size(filename,2);                                          %number of files loaded
 
@@ -48,102 +31,118 @@ if ~(iscell(filename))                                              %check if a 
     filename={filename};
 end
 
-currentData=zeros(timeSteps*traces,numStructures+1);                %temporary storage current file
-results=cell(numFiles+1,1+numParameters+3*numStructures);                         %analysis results of data
-averagedData=zeros(timeSteps,numStructures,numFiles);
+%results=cell(numFiles+1,1+nr_parameters+3*nr_structures);                         %analysis results of data
+%averagedData=zeros(nr_times_steps,nr_structures,numFiles);
 
-for i=1:numFiles
+for file_nr=1:numFiles
     
-    currentFile=fopen([pathname filename{i}],'r');                  %load current file
-    filename{i}
-    for j=1:1+numStructures+numParameterLines
-        parametersText{j}=fgetl(currentFile);                           %load parameter text
+    current_file=fopen([pathname filename{file_nr}],'r');                  %load current file
+    filename{file_nr}                                                     %print filename
+    for j=1:1+nr_structures+nr_parameter_lines
+        parameters_text{j}=fgetl(current_file)                           %load parameter text
     end
-
-    for j=0:(traces-1)                                              %load simulation data
-        fgetl(currentFile);                             
-        for k=1:timeSteps
-            currentData(k+j*timeSteps,:)=fscanf(currentFile,'%f',numStructures+1);
+   
+    current_data=zeros(nr_time_steps+1,24);
+    current_line = fgetl(current_file)
+    trace_nr = 0;
+    
+    while current_line~=-1                                         %load simulation data line by line
+        for step_nr=1:1+nr_time_steps
+            current_line=fgetl(current_file);
+            current_data(step_nr,:)=current_data(step_nr,:)+sscanf(current_line,'%f',[1,24]);
+            %step_nr
         end
+        current_line = fgetl(current_file)
+        trace_nr = trace_nr + 1; 
     end   
 
-    fclose(currentFile);
+    fclose(current_file);
+    
+    results{file_nr} = current_data/trace_nr;
+
+    %load parameter valuestart and end positions from file name
+    [parameterStarts, parameterEnds]=regexp(filename{file_nr},'[0123456789.-]*');
+    for parameter_nr=1:nr_parameters
+        results{file_nr,parameter_nr + 1}=filename{file_nr}(parameterStarts(parameter_nr):parameterEnds(parameter_nr));
+    end
+
+    return
     
     %analyse data
     
-    for j=0:(traces-1)      %create averaged Data for each structure. empty (=0) timesteps are set to 'folded' value of 0.8
-        averagedData(:,:,i)=averagedData(:,:,i)+currentData(j*timeSteps+1:(j+1)*timeSteps,2:end)/traces;
-        averagedData(:,:,i)=averagedData(:,:,i)+0.8*(currentData(j*timeSteps+1:(j+1)*timeSteps,2:end)==0)/traces;
+    for j=0:(nr_traces-1)      %create averaged Data for each structure. empty (=0) timesteps are set to 'folded' value of 0.8
+        averagedData(:,:,file_nr)=averagedData(:,:,file_nr)+current_data(j*nr_times_steps+1:(j+1)*nr_times_steps,2:end)/nr_traces;
+        averagedData(:,:,file_nr)=averagedData(:,:,file_nr)+0.8*(current_data(j*nr_times_steps+1:(j+1)*nr_times_steps,2:end)==0)/nr_traces;
     end
     
-    results{i+1,1}=filename{i};                                     %write filenames in results cell
+    results{file_nr+1,1}=filename{file_nr};                                     %write filenames in results cell
                                                                     
-    [parameterStarts, parameterEnds]=regexp(results{i+1,1},'[0123456789.-]*');%load parameters from file name
-    for j=1:numParameters
-        results{i+1,j+1}=results{i+1,1}(parameterStarts(j):parameterEnds(j));
+    [parameterStarts, parameterEnds]=regexp(results{file_nr+1,1},'[0123456789.-]*');%load parameters from file name
+    for j=1:nr_parameters
+        results{file_nr+1,j+1}=results{file_nr+1,1}(parameterStarts(j):parameterEnds(j));
     end
     
-    for j=1:numStructures                              %set number of folded structures to max, avg folding time to 0, avg fold ratio to 0
-        results{i+1,j+1+numParameters}=traces;
-        results{i+1,j+1+numParameters+numStructures}=0;
-        results{i+1,j+1+numParameters+2*numStructures}=0;
+    for j=1:nr_structures                              %set number of folded structures to max, avg folding time to 0, avg fold ratio to 0
+        results{file_nr+1,j+1+nr_parameters}=nr_traces;
+        results{file_nr+1,j+1+nr_parameters+nr_structures}=0;
+        results{file_nr+1,j+1+nr_parameters+2*nr_structures}=0;
     end
     
-    tempSelector=(currentData(:,2:end)~=0);                     %selector selects all steps with folding ratio != 0
-    thresholdSelector=(currentData(:,2:end)>=threshold);        %selector selects all steps with folding ratio above threshold
+    tempSelector=(current_data(:,2:end)~=0);                     %selector selects all steps with folding ratio != 0
+    thresholdSelector=(current_data(:,2:end)>=threshold);        %selector selects all steps with folding ratio above threshold
 
-    for k=1:numStructures                                                  
-        for j=1:traces
-            if sum(currentData(j*timeSteps-5:j*timeSteps,k+1))~=0  %final timesteps not 0, simulation reached timelimit
-                results{i+1,k+1+numParameters}=results{i+1,k+1+numParameters}-1;   %reduce number of folded structures if structure is unfolded at end of trace
+    for k=1:nr_structures                                                  
+        for j=1:nr_traces
+            if sum(current_data(j*nr_times_steps-5:j*nr_times_steps,k+1))~=0  %final timesteps not 0, simulation reached timelimit
+                results{file_nr+1,k+1+nr_parameters}=results{file_nr+1,k+1+nr_parameters}-1;   %reduce number of folded structures if structure is unfolded at end of trace
                 
                 %add fold ratio at end of trace
-                results{i+1,k+1+numParameters+2*numStructures}=results{i+1,k+1+numParameters+2*numStructures}+currentData((j-1)*timeSteps+timeSteps,k+1); 
+                results{file_nr+1,k+1+nr_parameters+2*nr_structures}=results{file_nr+1,k+1+nr_parameters+2*nr_structures}+current_data((j-1)*nr_times_steps+nr_times_steps,k+1); 
                 
-                if ~thresholdBool   %add constant non-fold time to average time of folding
-                    results{i+1,k+1+numParameters+numStructures}=results{i+1,k+1+numParameters+numStructures}+currentData(timeSteps,1); 
+                if ~threshold_bool   %add constant non-fold time to average time of folding
+                    results{file_nr+1,k+1+nr_parameters+nr_structures}=results{file_nr+1,k+1+nr_parameters+nr_structures}+current_data(nr_times_steps,1); 
                 end
             else	%simulation stopped before timelimit (folded/maxNrSteps)
-                tempCurrentData=currentData((j-1)*timeSteps+1:j*timeSteps,:);     %current trace data
-                tempCurrentData=tempCurrentData(tempSelector((j-1)*timeSteps+1:j*timeSteps,k),:);     %all timesteps where folding ratio !=0
+                tempCurrentData=current_data((j-1)*nr_times_steps+1:j*nr_times_steps,:);     %current trace data
+                tempCurrentData=tempCurrentData(tempSelector((j-1)*nr_times_steps+1:j*nr_times_steps,k),:);     %all timesteps where folding ratio !=0
                 if ~isempty(tempCurrentData)        %check if structure ever started folding, add last timestep that was still folding
-                    if ~thresholdBool               %add time of folding to average time of folding
-                        results{i+1,k+1+numParameters+numStructures}=results{i+1,k+1+numParameters+numStructures}+tempCurrentData(end,1);
+                    if ~threshold_bool               %add time of folding to average time of folding
+                        results{file_nr+1,k+1+nr_parameters+nr_structures}=results{file_nr+1,k+1+nr_parameters+nr_structures}+tempCurrentData(end,1);
                     end
                     %add foldratio at end of folding to check simulation limits
-                    results{i+1,k+1+numParameters+2*numStructures}=results{i+1,k+1+numParameters+2*numStructures}+tempCurrentData(end,k+1);
+                    results{file_nr+1,k+1+nr_parameters+2*nr_structures}=results{file_nr+1,k+1+nr_parameters+2*nr_structures}+tempCurrentData(end,k+1);
                 end              
             end
             
-            if thresholdBool
-                tempCurrentData=currentData((j-1)*timeSteps+1:j*timeSteps,:);    %current trace data
-                tempCurrentData=tempCurrentData(thresholdSelector((j-1)*timeSteps+1:j*timeSteps,k),:); %all timesteps where folding ratio >= threshold
+            if threshold_bool
+                tempCurrentData=current_data((j-1)*nr_times_steps+1:j*nr_times_steps,:);    %current trace data
+                tempCurrentData=tempCurrentData(thresholdSelector((j-1)*nr_times_steps+1:j*nr_times_steps,k),:); %all timesteps where folding ratio >= threshold
                 if ~isempty(tempCurrentData) %threshold never reached, add constant non-fold time
-                    results{i+1,k+1+numParameters+numStructures}=results{i+1,k+1+numParameters+numStructures}+tempCurrentData(1,1); 
+                    results{file_nr+1,k+1+nr_parameters+nr_structures}=results{file_nr+1,k+1+nr_parameters+nr_structures}+tempCurrentData(1,1); 
                 else    %add first timestep where folding ratio > threshold
-                    results{i+1,k+1+numParameters+numStructures}=results{i+1,k+1+numParameters+numStructures}+currentData(timeSteps,1); %add threshold crossing time
+                    results{file_nr+1,k+1+nr_parameters+nr_structures}=results{file_nr+1,k+1+nr_parameters+nr_structures}+current_data(nr_times_steps,1); %add threshold crossing time
                 end
             end
             
         end
-        results{i+1,k+1+numParameters+numStructures}=results{i+1,k+1+numParameters+numStructures}/traces; %calculate average time of folding
-        results{i+1,k+1+numParameters+2*numStructures}=results{i+1,k+1+numParameters+2*numStructures}/traces; %calculate average folding ratio at end of simulation
+        results{file_nr+1,k+1+nr_parameters+nr_structures}=results{file_nr+1,k+1+nr_parameters+nr_structures}/nr_traces; %calculate average time of folding
+        results{file_nr+1,k+1+nr_parameters+2*nr_structures}=results{file_nr+1,k+1+nr_parameters+2*nr_structures}/nr_traces; %calculate average folding ratio at end of simulation
     end
    
 end
                                                                     %write column names from parameters text block
 results{1,1}='filename';
 
-if ~isempty(structureNames)                                         %write structure names supplied by user
-    for i=1:numStructures
-    results{1,i+1+numParameters}=structureNames{i};
-    results{1,i+1+numParameters+numStructures}=structureNames{i};
+if ~isempty(structure_names)                                         %write structure names supplied by user
+    for i=1:nr_structures
+    results{1,i+1+nr_parameters}=structure_names{i};
+    results{1,i+1+nr_parameters+nr_structures}=structure_names{i};
     end
 else                                                                %read names of structure from files analyzed, write to results
-    for i=1:numStructures
-    tempLocation=strfind(parametersText{i+1}, '/');
-    results{1,i+1+numParameters}=parametersText{i+1}(tempLocation(size(tempLocation,2))+1:size(parametersText{i+1},2));
-    results{1,i+1+numParameters+numStructures}=parametersText{i+1}(tempLocation(size(tempLocation,2))+1:size(parametersText{i+1},2));
+    for i=1:nr_structures
+    tempLocation=strfind(parameters_text{i+1}, '/');
+    results{1,i+1+nr_parameters}=parameters_text{i+1}(tempLocation(size(tempLocation,2))+1:size(parameters_text{i+1},2));
+    results{1,i+1+nr_parameters+nr_structures}=parameters_text{i+1}(tempLocation(size(tempLocation,2))+1:size(parameters_text{i+1},2));
     end
 end
 
@@ -151,20 +150,20 @@ end
 
 %% save results to  results.txt
 
-currentFile=fopen([pathname filesep 'results.txt'],'w');
+current_file=fopen([pathname filesep 'results.txt'],'w');
 
 for i=1:numFiles+1
-    for j=1:2*numStructures+1+numParameters
+    for j=1:2*nr_structures+1+nr_parameters
         if ischar(results{i,j})
-            fprintf(currentFile,'%s\t',results{i,j});
+            fprintf(current_file,'%s\t',results{i,j});
         else
-            fprintf(currentFile,'%f\t',results{i,j});
+            fprintf(current_file,'%f\t',results{i,j});
         end
     end
-    fprintf(currentFile,'\n');
+    fprintf(current_file,'\n');
 end
 
-fclose(currentFile);
+fclose(current_file);
 
 return
 
