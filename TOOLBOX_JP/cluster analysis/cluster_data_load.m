@@ -24,26 +24,26 @@ nr_parameter_lines=28;                                               %number of 
 parameters_text=cell(1+nr_structures+nr_parameter_lines,1);           %saves parameters text, each cell one line
 nr_parameters=12;                                                   %number of parameters in filename
 
-numFiles=size(filename,2);                                          %number of files loaded
+nr_files=size(filename,2);                                          %number of files loaded
 
 if ~(iscell(filename))                                              %check if a single file was loaded, if yes, adjust data type of filename
-    numFiles=1;
+    nr_files=1;
     filename={filename};
 end
 
 %results=cell(numFiles+1,1+nr_parameters+3*nr_structures);                         %analysis results of data
 %averagedData=zeros(nr_times_steps,nr_structures,numFiles);
 
-for file_nr=1:numFiles
-    
+for file_nr=1:nr_files
+    file_nr
     current_file=fopen([pathname filename{file_nr}],'r');                  %load current file
     filename{file_nr}                                                     %print filename
     for j=1:1+nr_structures+nr_parameter_lines
-        parameters_text{j}=fgetl(current_file)                           %load parameter text
+        parameters_text{j}=fgetl(current_file);                           %load parameter text
     end
    
     current_data=zeros(nr_time_steps+1,24);
-    current_line = fgetl(current_file)
+    current_line = fgetl(current_file);
     trace_nr = 0;
     
     while current_line~=-1                                         %load simulation data line by line
@@ -52,13 +52,13 @@ for file_nr=1:numFiles
             current_data(step_nr,:)=current_data(step_nr,:)+sscanf(current_line,'%f',[1,24]);
             %step_nr
         end
-        current_line = fgetl(current_file)
+        current_line = fgetl(current_file);
         trace_nr = trace_nr + 1; 
     end   
 
     fclose(current_file);
     
-    results{file_nr} = current_data/trace_nr;
+    results{file_nr,1} = current_data/trace_nr;
 
     %load parameter valuestart and end positions from file name
     [parameterStarts, parameterEnds]=regexp(filename{file_nr},'[0123456789.-]*');
