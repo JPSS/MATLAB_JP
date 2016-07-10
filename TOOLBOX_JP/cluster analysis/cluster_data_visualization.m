@@ -1,14 +1,15 @@
-function [ ] = cluster_data_visualization( results, averagedData, param1, param2)
+function [ parameterFoldingTime, parameterTypes, params ] = cluster_data_visualization( results, averagedData, param1, param2, param3)
 %% plot analyzed cluster data
 
 numParameters=10;                                                   %number of parameters in filename
 numDataPoints=size(averagedData,1);
 numStructures=size(averagedData,2);
 numFiles=size(results,1)-1;
+params=[param1 param2 param3];
 
 structureNames=results(1,2+numParameters:1+numParameters+numStructures);
 
-resultsIndividual=cell(numFiles*numStructures,numParameters+2);
+resultsIndividual=cell(numFiles*numStructures,numParameters+2);     %results for each individual structure for each files
 for i=0:numFiles-1
     for j=1:numStructures
         resultsIndividual(i*numStructures+j,1:end-2)=results(i+2,2:1+numParameters);
@@ -17,54 +18,66 @@ for i=0:numFiles-1
     end
 end
 
-parameterTypes=cell(1,numParameters+1);
-numParameterType=cell(1,numParameters+1);
+parameterTypes=cell(1,numParameters+1);     %unique values for each parameter
+numParameterType=cell(1,numParameters+1);   %number of unique values for each parameter
 for i=1:numParameters+1
     parameterTypes{i}=unique(resultsIndividual(:,i));
     numParameterType{i}=length(parameterTypes{i});
 end
 
-parameterFoldingTime=zeros(numParameterType{param1},numParameterType{param2});
+parameterFoldingTime=zeros(numParameterType{param1},numParameterType{param2});      %average folding time for all files with same parameter 1 and 2 (and 3)
 
-param3=8;
-
-for i=1:numParameterType{param1}
+for i=1:numParameterType{param1}    %average over all files with same parameter 1 and 2 (and 3 if supplied)
 
     locationsParam1=strcmp(resultsIndividual(:,param1),parameterTypes{param1}(i));
     for j=1:numParameterType{param2}
 
         locationsParam2=strcmp(resultsIndividual(:,param2),parameterTypes{param2}(j));
         
-        for k=1:numParameterType{param3}
-            locationsParam3=strcmp(resultsIndividual(:,param3),parameterTypes{param3}(k));
-        
-            parameterFoldingTime(i,j,k)=mean([resultsIndividual{locationsParam1 & locationsParam2 & locationsParam3,2+numParameters}]);
+        if param3~=0
+            for k=1:numParameterType{param3}
+                locationsParam3=strcmp(resultsIndividual(:,param3),parameterTypes{param3}(k));
+
+                parameterFoldingTime(i,j,k)=mean([resultsIndividual{locationsParam1 & locationsParam2 & locationsParam3,2+numParameters}]);
+            end
+        else
+            parameterFoldingTime(i,j)=mean([resultsIndividual{locationsParam1 & locationsParam2,2+numParameters}]);
         end
-    
     end
 end
 
-currentFigure=figure;       
-for i=1:numParameterType{param3}
-parameterTypes{param3}(i)
-currentAxes=gca;
-plot(parameterFoldingTime(:,:,i))
 
-set(0,'defaultAxesLineStyleOrder','-|--|:')
-ylabel('folding time [sec]')
-axis([-inf inf 0 numDataPoints])
-set(currentAxes, 'XTick',1:numParameterType{param1}, 'XTickLabel',parameterTypes{param1})
-legend(parameterTypes{param2})
-set(currentAxes, 'FontSize',20)
-pause
+currentFigure=figure;       %plot average folding time for all files with same parameter 1 and 2 (and 3)
+if param3~=0
+    for i=1:numParameterType{param3}
+    parameterTypes{param3}(i)
+    currentAxes=gca;
+    plot(parameterFoldingTime(:,:,i))
+    set(0,'defaultAxesLineStyleOrder','-|--|:')
+    ylabel('folding time [sec]')
+    axis([-inf inf 0 numDataPoints])
+    set(currentAxes, 'XTick',1:numParameterType{param1}, 'XTickLabel',parameterTypes{param1})
+    legend(parameterTypes{param2})
+    set(currentAxes, 'FontSize',20)
+    pause
+    end
+else
+    currentAxes=gca;
+    plot(parameterFoldingTime(:,:))
+    set(0,'defaultAxesLineStyleOrder','-|--|:')
+    ylabel('folding time [sec]')
+    axis([-inf inf 0 numDataPoints])
+    set(currentAxes, 'XTick',1:numParameterType{param1}, 'XTickLabel',parameterTypes{param1})
+    legend(parameterTypes{param2})
+    set(currentAxes, 'FontSize',20)
 end
 
-return
 
+return
 currentFigure=figure;       
 for i=1:numStructures
     clf
-    surface(squeeze(averagedData(2:300,i,:)),'FaceColor','interp');
+    surface(squeeze(averagedData(2:4500,i,:)),'FaceColor','interp');
     currentAxes=gca;
     title(results{1,1+numParameters+i});
     set(currentAxes, 'XTick',1:numParameterType{param1}, 'XTickLabel',results(2:end,1+param1))
@@ -73,12 +86,13 @@ end
 
 for i=1:numParameterType{param1}
     clf
-    surface(squeeze(averagedData(2:300,:,i)),'FaceColor','interp');
+    surface(squeeze(averagedData(2:4500,:,i)),'FaceColor','interp');
     currentAxes=gca;
     title(results{1+i,1+param1});
     set(currentAxes, 'XTick',1:numStructures, 'XTickLabel',{results{1,2+numParameters:1+numParameters+numStructures}})
     pause
 end
+
 
 %surface(temp(2:1:720,2:4:24*4),'EdgeColor','none','LineStyle','none')
 
