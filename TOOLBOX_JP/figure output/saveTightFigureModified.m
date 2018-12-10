@@ -1,4 +1,4 @@
-function saveTightFigure(h)
+function saveTightFigureModified()
 % SAVETIGHTFIGURE(OUTFILENAME) Saves the current figure without the white
 %   space/margin around it to the file OUTFILENAME. Output file type is
 %   determined by the extension of OUTFILENAME. All formats that are
@@ -55,6 +55,6 @@ set(hfig, 'position', [p(1) p(2) width height]);
 %% set papersize
 set(hfig,'PaperUnits','centimeters');
 set(hfig,'PaperSize', [width height]);
-set(hfig,'PaperPositionMode', 'manual');
-set(hfig,'PaperPosition',[0 0 width height]);
+%set(hfig,'PaperPositionMode', 'manual');
+%set(hfig,'PaperPosition',[0 0 width height]);
 
