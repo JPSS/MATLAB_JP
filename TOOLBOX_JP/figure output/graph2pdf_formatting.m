@@ -5,7 +5,7 @@ function [ ] = graph2pdf_formatting(varargin)
 %% parse input
 p = inputParser;
 
-addParameter(p,'title', '', @ischar);
+addParameter(p,'title', '');
 addParameter(p,'xlabel', '', @ischar);
 addParameter(p,'ylabel', '', @ischar);
 addParameter(p,'legend', '', @iscellstr);
