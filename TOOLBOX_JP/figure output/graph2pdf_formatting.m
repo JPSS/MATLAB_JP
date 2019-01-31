@@ -6,11 +6,11 @@ function [ ] = graph2pdf_formatting(varargin)
 p = inputParser;
 
 addParameter(p,'title', '');
-addParameter(p,'xlabel', '', @ischar);
-addParameter(p,'ylabel', '', @ischar);
-addParameter(p,'legend', '', @iscellstr);
-addParameter(p,'fontSize', 16, @isnumeric);
-addParameter(p,'baseline',1, @isnumeric);
+addParameter(p,'xlabel', '');
+addParameter(p,'ylabel', '');
+addParameter(p,'legend', '');
+addParameter(p,'fontSize', 16);
+addParameter(p,'baseline',1);
     
 parse(p, varargin{:});
 %% determine objects to modifiy
