@@ -10,7 +10,7 @@ addParameter(p,'xlabel', '');
 addParameter(p,'ylabel', '');
 addParameter(p,'legend', '');
 addParameter(p,'fontSize', 16);
-addParameter(p,'baseline',1);
+addParameter(p,'baseline',0);
     
 parse(p, varargin{:});
 %% determine objects to modifiy
