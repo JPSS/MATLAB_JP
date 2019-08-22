@@ -62,7 +62,7 @@ changing_parameter = 1;
 
 %% plot data
 
-figure('pos',[0,0,1800,900])
+figure('pos',[0,0,600,400])
 
 %cycle through all parameter sets
 while changing_parameter <= length(parameters_in_parameter_set)
@@ -83,12 +83,17 @@ while changing_parameter <= length(parameters_in_parameter_set)
     subplot_index=1;
     clf
     
+    % total number of subplots
+    number_of_subplots = length(parameter_values{variable_in_one_plot});
+    % number of subplots in x or y direction
+    subplots_per_axis = ceil(sqrt(number_of_subplots));
+    
     %select subset to plot from parameter set subset
     for plot_parameter_value = parameter_values{variable_in_one_plot}'
         subset_to_plot = subset_selector & ismember( {data{:,variable_in_one_plot}} , plot_parameter_value );
         results_subset = sortrows( data(subset_to_plot,:), variable_in_one_curve);
 
-        subplot(3,3,subplot_index)
+        subplot(subplots_per_axis, subplots_per_axis, subplot_index)
         plot_x_range_current = 0;
 
         %plot data from current subset
