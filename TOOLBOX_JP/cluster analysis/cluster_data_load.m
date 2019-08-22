@@ -7,12 +7,19 @@ function [ results , mean_times ] = cluster_data_load(nr_structures,nr_time_step
 %   pathname is pathnames of files
 
 %% parse input variables
-    p = inputParser;
-    % required parameter
-    addRequired(p,'nr_structures');
-    addRequired(p,'nr_times_steps');
-    
-    
+p = inputParser;
+% required parameter
+addRequired(p, 'nr_structures');
+addRequired(p, 'nr_times_steps');
+
+% optional parameter: filenames
+default_filenames = {};
+addParameter(p,'filenames', default_filenames,  @iscell);
+
+parse(p, nr_structures, nr_time_steps, varargin{:});
+
+filenames = p.Results.filenames;
+
 %nr of steps to be considered in mean folding time calculation
 nr_mean_folding_time_steps = 10;
     
@@ -21,18 +28,26 @@ nr_mean_folding_time_steps = 10;
 %then opens next file
 %current_data is array of averaged traces from file
 
-[filename, pathname]=uigetfile('*','select cluster data','MultiSelect','on');
-
-nr_parameter_lines = 28;                                               %number of lines after structure names before data starts
-parameters_text = cell(1+nr_structures+nr_parameter_lines,1);           %saves parameters text, each cell one line
-nr_parameters = 12;                                                   %number of parameters in filename
-
-nr_files=size(filename,2);                                          %number of files loaded
-
-if ~(iscell(filename))                                              %check if a single file was loaded, if yes, adjust data type of filename
-    nr_files=1;
-    filename={filename};
+% check if filenames were passed as argument
+if isempty(filenames)
+    % no filenames were passed, manually select files
+    [filename, pathname]=uigetfile('*','select cluster data','MultiSelect','on');
+else    
+    % parse passed filenames
+    filename = filenames{1}
+    pathname = filenames{2}
 end
+
+    nr_parameter_lines = 28;                                               %number of lines after structure names before data starts
+    parameters_text = cell(1+nr_structures+nr_parameter_lines,1);           %saves parameters text, each cell one line
+    nr_parameters = 12;                                                   %number of parameters in filename
+
+    nr_files=size(filename,2);                                          %number of files loaded
+
+    if ~(iscell(filename))                                              %check if a single file was loaded, if yes, adjust data type of filename
+        nr_files=1;
+        filename={filename};
+    end
 
 %results=cell(numFiles+1,1+nr_parameters+3*nr_structures);                         %analysis results of data
 %averagedData=zeros(nr_times_steps,nr_structures,numFiles);
@@ -60,6 +75,11 @@ for file_nr=1:nr_files
             current_line=fgetl(current_file);
             current_line_data = sscanf(current_line,'%f',[1,24]);
             current_data(step_nr,:)=current_data(step_nr,:) + current_line_data;
+            
+%             %set finished trace contribution for good crossover ratio to 0.8 instead of 0
+%             if current_line_data(14) == 0
+%                 current_data(step_nr, 14) = current_data(step_nr, 14) + 0.8;
+%             end
             
             for cutoff = 1:nr_mean_folding_time_steps
                 if current_line_data(14) > cutoff/nr_mean_folding_time_steps && current_times(cutoff) == nr_time_steps
